@@ -19,7 +19,17 @@ func (c Cid) Marshal() ([]byte, error) {
 
 func (c *Cid) MarshalTo(data []byte) (int, error) {
 	// intentionally using KeyString here to avoid allocating.
-	return copy(data[:c.Size()], c.Cid.KeyString()), nil
+	end := len(c.Cid.KeyString())
+	size := copy(data[:end], c.Cid.KeyString())
+
+	if c.Cid.GetParam() != "" {
+		start := end
+		end += len(c.Cid.GetParamBytes())
+
+		size += copy(data[start:end], c.Cid.GetParamBytes())
+	}
+
+	return size, nil
 }
 
 func (c *Cid) Unmarshal(data []byte) (err error) {
@@ -28,7 +38,7 @@ func (c *Cid) Unmarshal(data []byte) (err error) {
 }
 
 func (c *Cid) Size() int {
-	return len(c.Cid.KeyString())
+	return len(c.Cid.KeyString()) + len(c.Cid.GetParamBytes())
 }
 
 func (c Cid) MarshalJSON() ([]byte, error) {
