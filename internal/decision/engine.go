@@ -584,6 +584,7 @@ func (e *Engine) Peers() []peer.ID {
 // For each item in the wantlist, add a want-have or want-block entry to the
 // request queue (this is later popped off by the workerTasks)
 func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwapMessage) {
+	fmt.Println("[Print Debug] (*Engine) MessageReceived is called...")
 	entries := m.Wantlist()
 
 	if len(entries) > 0 {
@@ -616,8 +617,17 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Get block sizes
 	wantKs := cid.NewSet()
-	for _, entry := range wants {
-		wantKs.Add(entry.Cid)
+	for i, entry := range wants {
+		if entry.Cid.GetParam() != "" {
+			ok, newcid := entry.Cid.IsExistResizeCid()
+			if ok {
+				wants[i].Entry.Cid = newcid
+				log.Debugw("wantlist cid is changed", "before", entry.Cid.StringWithParam(), "after", newcid)
+				wantKs.Add((newcid))
+			}
+		} else {
+			wantKs.Add(entry.Cid)
+		}
 	}
 	blockSizes, err := e.bsm.getBlockSizes(ctx, wantKs.Keys())
 	if err != nil {
