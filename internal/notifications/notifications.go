@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	pubsub "github.com/cskr/pubsub"
@@ -15,7 +16,7 @@ const bufferSize = 16
 // for cids. It's used internally by bitswap to decouple receiving blocks
 // and actually providing them back to the GetBlocks caller.
 type PubSub interface {
-	Publish(block blocks.Block)
+	Publish(block blocks.Block, topic ...string)
 	Subscribe(ctx context.Context, keys ...cid.Cid) <-chan blocks.Block
 	Shutdown()
 }
@@ -35,7 +36,7 @@ type impl struct {
 	closed chan struct{}
 }
 
-func (ps *impl) Publish(block blocks.Block) {
+func (ps *impl) Publish(block blocks.Block, key ...string) {
 	ps.lk.RLock()
 	defer ps.lk.RUnlock()
 	select {
@@ -44,7 +45,16 @@ func (ps *impl) Publish(block blocks.Block) {
 	default:
 	}
 
-	ps.wrapped.Pub(block, block.Cid().KeyString())
+	var topic string
+
+	if len(key) > 0 {
+		topic = key[0]
+	} else {
+		topic = block.Cid().KeyString()
+	}
+
+	fmt.Println("[Print Debug]Publishing topic: " + topic)
+	ps.wrapped.Pub(block, topic)
 }
 
 func (ps *impl) Shutdown() {
@@ -80,6 +90,10 @@ func (ps *impl) Subscribe(ctx context.Context, keys ...cid.Cid) <-chan blocks.Bl
 		close(blocksCh)
 		return blocksCh
 	default:
+	}
+
+	for _, t := range toStrings(keys) {
+		fmt.Println("[Print Debug]Subscribing topic: " + t)
 	}
 
 	// AddSubOnceEach listens for each key in the list, and closes the channel
@@ -131,7 +145,11 @@ func (ps *impl) Subscribe(ctx context.Context, keys ...cid.Cid) <-chan blocks.Bl
 func toStrings(keys []cid.Cid) []string {
 	strs := make([]string, 0, len(keys))
 	for _, key := range keys {
-		strs = append(strs, key.KeyString())
+		if key.GetParam() != "" {
+			strs = append(strs, key.StringWithParam())
+		} else {
+			strs = append(strs, key.KeyString())
+		}
 	}
 	return strs
 }

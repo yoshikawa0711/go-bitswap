@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/ipfs/go-bitswap/internal/notifications"
 	bsmsg "github.com/ipfs/go-bitswap/message"
 	pb "github.com/ipfs/go-bitswap/message/pb"
 	wl "github.com/ipfs/go-bitswap/wantlist"
@@ -583,7 +584,7 @@ func (e *Engine) Peers() []peer.ID {
 // MessageReceived is called when a message is received from a remote peer.
 // For each item in the wantlist, add a want-have or want-block entry to the
 // request queue (this is later popped off by the workerTasks)
-func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwapMessage) {
+func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwapMessage, notif ...notifications.PubSub) {
 	fmt.Println("[Print Debug] (*Engine) MessageReceived is called...")
 	entries := m.Wantlist()
 
@@ -617,15 +618,19 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Get block sizes
 	wantKs := cid.NewSet()
-	for i, entry := range wants {
+	for _, entry := range wants {
 		if entry.Cid.GetParam() != "" {
 			ok, newcid := entry.Cid.IsExistResizeCid()
 			if ok {
-				wants[i].Entry.Cid = newcid
-				log.Debugw("wantlist cid is changed", "before", entry.Cid.StringWithParam(), "after", newcid)
-				wantKs.Add((newcid))
+				if len(notif) > 0 {
+					blk, err := e.bsm.bs.Get(ctx, newcid)
+					if err == nil {
+						notif[0].Publish(blk, entry.Cid.StringWithParam())
+						log.Debugw("Published", "topic", entry.Cid.StringWithParam(), "block cid", newcid)
+					}
+				}
 			}
-		} else {
+
 			wantKs.Add(entry.Cid)
 		}
 	}

@@ -478,7 +478,12 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 	// If blocks came from the network
 	if from != "" {
 		var notWanted []blocks.Block
-		wanted, notWanted = bs.sim.SplitWantedUnwanted(blks)
+		wanted = blks
+		// wanted, notWanted = bs.sim.SplitWantedUnwanted(blks)
+
+		fmt.Println("[Print Debug]wanted: " + fmt.Sprint(wanted))
+		fmt.Println("[Print Debug]notWanted: " + fmt.Sprint(notWanted))
+
 		for _, b := range notWanted {
 			log.Debugf("[recv] block not in wantlist; cid=%s, peer=%s", b.Cid(), from)
 		}
@@ -558,7 +563,7 @@ func (bs *Bitswap) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg
 
 	// This call records changes to wantlists, blocks received,
 	// and number of bytes transfered.
-	bs.engine.MessageReceived(ctx, p, incoming)
+	bs.engine.MessageReceived(ctx, p, incoming, bs.notif)
 	// TODO: this is bad, and could be easily abused.
 	// Should only track *useful* messages in ledger
 
