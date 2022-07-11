@@ -516,6 +516,8 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 				// Add DONT_HAVEs to the message
 				msg.AddDontHave(c)
 			}
+
+			msg.SetRequest(t.Request)
 		}
 
 		// Fetch blocks from datastore

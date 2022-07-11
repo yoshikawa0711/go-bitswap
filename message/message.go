@@ -79,6 +79,9 @@ type BitSwapMessage interface {
 
 	// Request cid
 	Request() cid.Cid
+
+	// Set request cid
+	SetRequest(cid.Cid)
 }
 
 // Exportable is an interface for structures than can be
@@ -506,4 +509,8 @@ func (m *impl) Loggable() map[string]interface{} {
 
 func (m *impl) Request() cid.Cid {
 	return m.request
+}
+
+func (m *impl) SetRequest(c cid.Cid) {
+	m.request = c
 }
