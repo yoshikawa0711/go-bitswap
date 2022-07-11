@@ -617,17 +617,8 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 	// Get block sizes
 	wantKs := cid.NewSet()
-	for i, entry := range wants {
-		if entry.Cid.GetParam() != "" {
-			ok, newcid := entry.Cid.IsExistResizeCid()
-			if ok {
-				wants[i].Entry.Cid = newcid
-				log.Debugw("wantlist cid is changed", "before", entry.Cid.StringWithParam(), "after", newcid)
-				wantKs.Add((newcid))
-			}
-		} else {
-			wantKs.Add(entry.Cid)
-		}
+	for _, entry := range wants {
+		wantKs.Add(entry.Cid)
 	}
 	blockSizes, err := e.bsm.getBlockSizes(ctx, wantKs.Keys())
 	if err != nil {
@@ -685,6 +676,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 					HaveBlock:    false,
 					IsWantBlock:  isWantBlock,
 					SendDontHave: entry.SendDontHave,
+					Request:      cid.Undef,
 				},
 			})
 		}
@@ -703,6 +695,22 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 
 		// Add each want-have / want-block to the ledger
 		l.Wants(c, entry.Priority, entry.WantType)
+
+		// Check request cid is exist in resizing table
+		request := cid.Undef
+		if c.GetParam() != "" {
+			found, newcid := c.IsExistResizeCid()
+			if found {
+				_, err := e.bsm.bs.Get(ctx, newcid)
+				if err != nil {
+					found = false
+					log.Debugw("Bitswap engine: resized cid not found", "request", c.StringWithParam())
+				}
+				request = c
+				c = newcid
+				log.Debugw("Bitswap engine: resized cid found", "before", request.StringWithParam(), "after", c)
+			}
+		}
 
 		// If the block was not found
 		if !found {
@@ -733,6 +741,7 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 					HaveBlock:    true,
 					IsWantBlock:  isWantBlock,
 					SendDontHave: entry.SendDontHave,
+					Request:      request,
 				},
 			})
 		}
@@ -857,6 +866,7 @@ func (e *Engine) ReceiveFrom(from peer.ID, blks []blocks.Block) {
 					HaveBlock:    true,
 					IsWantBlock:  isWantBlock,
 					SendDontHave: false,
+					Request:      cid.Undef,
 				},
 			})
 			e.updateMetrics()

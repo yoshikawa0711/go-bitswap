@@ -1,6 +1,7 @@
 package decision
 
 import (
+	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-peertaskqueue/peertask"
 )
 
@@ -14,6 +15,8 @@ type taskData struct {
 	BlockSize int
 	// Whether the block was found
 	HaveBlock bool
+	// requested cid before resizing
+	Request cid.Cid
 }
 
 type taskMerger struct{}

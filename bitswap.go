@@ -556,6 +556,10 @@ func (bs *Bitswap) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg
 	bs.counters.messagesRecvd++
 	bs.counterLk.Unlock()
 
+	if incoming.Request() != cid.Undef {
+		fmt.Println("Request Cid: " + incoming.Request().StringWithParam())
+	}
+
 	// This call records changes to wantlists, blocks received,
 	// and number of bytes transfered.
 	bs.engine.MessageReceived(ctx, p, incoming)

@@ -76,6 +76,9 @@ type BitSwapMessage interface {
 
 	// Clone the message fields
 	Clone() BitSwapMessage
+
+	// Request cid
+	Request() cid.Cid
 }
 
 // Exportable is an interface for structures than can be
@@ -147,6 +150,7 @@ type impl struct {
 	blocks         map[cid.Cid]blocks.Block
 	blockPresences map[cid.Cid]pb.Message_BlockPresenceType
 	pendingBytes   int32
+	request        cid.Cid
 }
 
 // New returns a new, empty bitswap message
@@ -160,6 +164,7 @@ func newMsg(full bool) *impl {
 		wantlist:       make(map[cid.Cid]*Entry),
 		blocks:         make(map[cid.Cid]blocks.Block),
 		blockPresences: make(map[cid.Cid]pb.Message_BlockPresenceType),
+		request:        cid.Undef,
 	}
 }
 
@@ -497,4 +502,8 @@ func (m *impl) Loggable() map[string]interface{} {
 		"blocks": blocks,
 		"wants":  m.Wantlist(),
 	}
+}
+
+func (m *impl) Request() cid.Cid {
+	return m.request
 }
