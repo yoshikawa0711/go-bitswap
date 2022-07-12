@@ -29,6 +29,12 @@ func (c *Cid) MarshalTo(data []byte) (int, error) {
 		size += copy(data[start:end], c.Cid.GetParamBytes())
 	}
 
+	if req := c.Cid.GetRequest(); req != "" {
+		start := end
+		end += len([]byte("&" + req))
+		size += copy(data[start:end], []byte("&"+req))
+	}
+
 	return size, nil
 }
 
@@ -38,7 +44,17 @@ func (c *Cid) Unmarshal(data []byte) (err error) {
 }
 
 func (c *Cid) Size() int {
-	return len(c.Cid.KeyString()) + len(c.Cid.GetParamBytes())
+	size := len(c.Cid.KeyString())
+
+	if c.Cid.GetParam() != "" {
+		size += len(c.Cid.GetParamBytes())
+	}
+
+	if req := c.Cid.GetRequest(); req != "" {
+		size += len(req) + 1
+	}
+
+	return size
 }
 
 func (c Cid) MarshalJSON() ([]byte, error) {

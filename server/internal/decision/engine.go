@@ -536,6 +536,8 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 		blockTasks := make(map[cid.Cid]*taskData, len(nextTasks))
 		for _, t := range nextTasks {
 			c := t.Topic.(cid.Cid)
+			fmt.Println("[Print Debug] Cid in nextEnvelope(): " + c.StringWithParam())
+			fmt.Println("[Print Debug] Request in nextEnvelope(): " + c.GetRequest())
 			td := t.Data.(*taskData)
 			if td.HaveBlock {
 				if td.IsWantBlock {
@@ -567,6 +569,8 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 					msg.AddDontHave(c)
 				}
 			} else {
+				fmt.Println("[Print Debug] blk Cid: " + blk.Cid().StringWithParam())
+				fmt.Println("[Print Debug] blk Cid request: " + blk.Cid().GetRequest())
 				// Add the block to the message
 				// log.Debugf("  make evlp %s->%s block: %s (%d bytes)", e.self, p, c, len(blk.RawData()))
 				msg.AddBlock(blk)
@@ -652,16 +656,18 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	wantKs := cid.NewSet()
 	for i, entry := range wants {
 		if entry.Cid.GetParam() != "" {
-			ok, newcid := entry.Cid.IsExistResizeCid()
-			if ok {
-				wants[i].Entry.Cid = newcid
-				log.Debugw("wantlist cid is changed", "before", entry.Cid.StringWithParam(), "after", newcid)
-				wantKs.Add((newcid))
+			if ok, newcid := entry.Cid.IsExistResizeCid(); ok {
+				request := entry.Cid
+				entry.Cid = newcid
+				entry.Cid.SetRequest(request.StringWithParam())
+				wants[i] = entry
+				log.Debugw("wantlist cid is changed", "before", entry.Cid.GetRequest(), "after", entry.Cid.StringWithParam())
 			}
-		} else {
-			wantKs.Add(entry.Cid)
 		}
+
+		wantKs.Add(entry.Cid)
 	}
+
 	blockSizes, err := e.bsm.getBlockSizes(ctx, wantKs.Keys())
 	if err != nil {
 		log.Info("aborting message processing", err)
