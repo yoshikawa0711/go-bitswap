@@ -536,8 +536,6 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 		blockTasks := make(map[cid.Cid]*taskData, len(nextTasks))
 		for _, t := range nextTasks {
 			c := t.Topic.(cid.Cid)
-			fmt.Println("[Print Debug] Cid in nextEnvelope(): " + c.StringWithParam())
-			fmt.Println("[Print Debug] Request in nextEnvelope(): " + c.GetRequest())
 			td := t.Data.(*taskData)
 			if td.HaveBlock {
 				if td.IsWantBlock {
@@ -569,8 +567,6 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 					msg.AddDontHave(c)
 				}
 			} else {
-				fmt.Println("[Print Debug] blk Cid: " + blk.Cid().StringWithParam())
-				fmt.Println("[Print Debug] blk Cid request: " + blk.Cid().GetRequest())
 				// Add the block to the message
 				// log.Debugf("  make evlp %s->%s block: %s (%d bytes)", e.self, p, c, len(blk.RawData()))
 				msg.AddBlock(blk)
@@ -621,7 +617,6 @@ func (e *Engine) Peers() []peer.ID {
 // For each item in the wantlist, add a want-have or want-block entry to the
 // request queue (this is later popped off by the workerTasks)
 func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwapMessage) {
-	fmt.Println("[Print Debug] (*Engine) MessageReceived is called...")
 	entries := m.Wantlist()
 
 	if len(entries) > 0 {

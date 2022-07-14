@@ -224,6 +224,7 @@ func newMessageFromProto(pbm pb.Message) (BitSwapMessage, error) {
 			return nil, err
 		}
 
+		c.SetRequest(b.Cid.Cid.GetRequest())
 		blk, err := blocks.NewBlockWithCid(b.GetData(), c)
 		if err != nil {
 			return nil, err
