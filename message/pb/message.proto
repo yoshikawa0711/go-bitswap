@@ -27,6 +27,7 @@ message Message {
   message Block {
     bytes prefix = 1;		// CID prefix (cid version, multicodec and multihash prefix (type + length)
     bytes data = 2;
+    bytes cid = 3 [(gogoproto.customtype) = "Cid", (gogoproto.nullable) = false];
   }
 
   enum BlockPresenceType {

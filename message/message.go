@@ -446,6 +446,7 @@ func (m *impl) ToProtoV1() *pb.Message {
 		pbm.Payload = append(pbm.Payload, pb.Message_Block{
 			Data:   b.RawData(),
 			Prefix: b.Cid().Prefix().Bytes(),
+			Cid:    pb.Cid{Cid: b.Cid()},
 		})
 	}
 
