@@ -185,6 +185,9 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 	// blocks)
 	for _, b := range wanted {
 		bs.notif.Publish(b)
+		if req := b.Cid().GetRequest(); req != "" {
+			bs.notif.Publish(b, req)
+		}
 	}
 
 	// If the reprovider is enabled, send wanted blocks to reprovider
