@@ -1,6 +1,7 @@
 package sessioninterestmanager
 
 import (
+	"fmt"
 	"sync"
 
 	blocks "github.com/ipfs/go-block-format"
@@ -143,6 +144,8 @@ func (sim *SessionInterestManager) FilterSessionInterested(ses uint64, ksets ...
 // When bitswap receives blocks it calls SplitWantedUnwanted() to discard
 // unwanted blocks
 func (sim *SessionInterestManager) SplitWantedUnwanted(blks []blocks.Block) ([]blocks.Block, []blocks.Block) {
+	fmt.Println("[Print Debug] SplitWantedUnWanted() is called.")
+
 	sim.lk.RLock()
 	defer sim.lk.RUnlock()
 
@@ -150,12 +153,32 @@ func (sim *SessionInterestManager) SplitWantedUnwanted(blks []blocks.Block) ([]b
 	wantedKs := cid.NewSet()
 	for _, b := range blks {
 		c := b.Cid()
+
+		fmt.Println("[Print Debug] blk cid: " + c.StringWithParam())
+		fmt.Println("[Print Debug] blk request cid: " + c.GetRequest())
+
 		// For each session that is interested in the key
 		for ses := range sim.wants[c] {
 			// If the session wants the key (rather than just being interested)
 			if wanted, ok := sim.wants[c][ses]; ok && wanted {
 				// Add the key to the set
 				wantedKs.Add(c)
+			}
+		}
+
+		reqcid, err := c.GetRequestCid()
+		if err != nil {
+			fmt.Println("[Print Debug] convert Request to Cid: " + fmt.Sprint(err))
+		} else {
+			// For each session that is interested in the key of request
+			for ses := range sim.wants[reqcid] {
+				fmt.Println("[Print Debug] ses: " + fmt.Sprint(ses))
+				// If the session wants the key (rather than just being interested)
+				if wanted, ok := sim.wants[reqcid][ses]; ok && wanted {
+					// Add the key to the set
+					fmt.Println("[Print Debug] Add reqcid: " + reqcid.StringWithParam())
+					wantedKs.Add(reqcid)
+				}
 			}
 		}
 	}
@@ -167,7 +190,11 @@ func (sim *SessionInterestManager) SplitWantedUnwanted(blks []blocks.Block) ([]b
 		if wantedKs.Has(b.Cid()) {
 			wantedBlks = append(wantedBlks, b)
 		} else {
-			notWantedBlks = append(notWantedBlks, b)
+			if reqcid, _ := b.Cid().GetRequestCid(); wantedKs.Has(reqcid) {
+				wantedBlks = append(wantedBlks, b)
+			} else {
+				notWantedBlks = append(notWantedBlks, b)
+			}
 		}
 	}
 	return wantedBlks, notWantedBlks

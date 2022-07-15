@@ -116,6 +116,99 @@ type Stat struct {
 	ProvideBufLen    int
 }
 
+/*
+// TODO: Some of this stuff really only needs to be done when adding a block
+// from the user, not when receiving it from the network.
+// In case you run `git blame` on this comment, I'll save you some time: ask
+// @whyrusleeping, I don't know the answers you seek.
+func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []blocks.Block, haves []cid.Cid, dontHaves []cid.Cid) error {
+	select {
+	case <-bs.process.Closing():
+		return errors.New("bitswap is closed")
+	default:
+	}
+
+	wanted := blks
+
+	// If blocks came from the network
+	if from != "" {
+		var notWanted []blocks.Block
+		wanted, notWanted = bs.sim.SplitWantedUnwanted(blks)
+		for _, b := range notWanted {
+			log.Debugf("[recv] block not in wantlist; cid=%s, peer=%s", b.Cid(), from)
+		}
+	}
+
+	for _, b := range wanted {
+		fmt.Println("[Print Debug] wanted: " + b.Cid().GetRequest())
+	}
+
+	// Put wanted blocks into blockstore
+	if len(wanted) > 0 {
+		err := bs.blockstore.PutMany(ctx, wanted)
+		if err != nil {
+			log.Errorf("Error writing %d blocks to datastore: %s", len(wanted), err)
+			return err
+		}
+	}
+
+	// NOTE: There exists the possiblity for a race condition here.  If a user
+	// creates a node, then adds it to the dagservice while another goroutine
+	// is waiting on a GetBlock for that object, they will receive a reference
+	// to the same node. We should address this soon, but i'm not going to do
+	// it now as it requires more thought and isnt causing immediate problems.
+
+	allKs := make([]cid.Cid, 0, len(blks))
+	for _, b := range blks {
+		allKs = append(allKs, b.Cid())
+	}
+
+	// If the message came from the network
+	if from != "" {
+		// Inform the PeerManager so that we can calculate per-peer latency
+		combined := make([]cid.Cid, 0, len(allKs)+len(haves)+len(dontHaves))
+		combined = append(combined, allKs...)
+		combined = append(combined, haves...)
+		combined = append(combined, dontHaves...)
+		bs.pm.ResponseReceived(from, combined)
+	}
+
+	// Send all block keys (including duplicates) to any sessions that want them.
+	// (The duplicates are needed by sessions for accounting purposes)
+	bs.sm.ReceiveFrom(ctx, from, allKs, haves, dontHaves)
+
+	// Send wanted blocks to decision engine
+	bs.engine.ReceiveFrom(from, wanted)
+
+	// Publish the block to any Bitswap clients that had requested blocks.
+	// (the sessions use this pubsub mechanism to inform clients of incoming
+	// blocks)
+	for _, b := range wanted {
+		bs.notif.Publish(b)
+	}
+
+	// If the reprovider is enabled, send wanted blocks to reprovider
+	if bs.provideEnabled {
+		for _, blk := range wanted {
+			select {
+			case bs.newBlocks <- blk.Cid():
+				// send block off to be reprovided
+			case <-bs.process.Closing():
+				return bs.process.Close()
+			}
+		}
+	}
+
+	if from != "" {
+		for _, b := range wanted {
+			log.Debugw("Bitswap.GetBlockRequest.End", "cid", b.Cid())
+		}
+	}
+
+	return nil
+}
+*/
+
 func (bs *Bitswap) Stat() (*Stat, error) {
 	cs, err := bs.Client.Stat()
 	if err != nil {
