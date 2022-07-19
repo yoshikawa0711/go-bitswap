@@ -655,12 +655,13 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 				request := entry.Cid
 				entry.Cid = newcid
 				entry.Cid.SetRequest(request.StringWithParam())
-				wants[i] = entry
 				log.Debugw("wantlist cid is changed", "before", entry.Cid.GetRequest(), "after", entry.Cid.StringWithParam())
 			} else {
 				entry.Cid.SetRequest(entry.Cid.StringWithParam())
 				entry.Cid.SetParam("")
 			}
+
+			wants[i] = entry
 		}
 
 		wantKs.Add(entry.Cid)
