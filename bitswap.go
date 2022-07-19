@@ -139,10 +139,6 @@ func (bs *Bitswap) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []b
 		}
 	}
 
-	for _, b := range wanted {
-		fmt.Println("[Print Debug] wanted: " + b.Cid().GetRequest())
-	}
-
 	// Put wanted blocks into blockstore
 	if len(wanted) > 0 {
 		err := bs.blockstore.PutMany(ctx, wanted)

@@ -92,31 +92,11 @@ func (bsm *blockstoreManager) getBlockSizes(ctx context.Context, ks []cid.Cid) (
 
 	var lk sync.Mutex
 	return res, bsm.jobPerKey(ctx, ks, func(c cid.Cid) {
-		fmt.Println("[Print Debug] GetSize cid is " + c.StringWithParam())
 		size, err := bsm.bs.GetSize(ctx, c)
-
 		if err != nil {
 			if !ipld.IsNotFound(err) {
 				// Note: this isn't a fatal error. We shouldn't abort the request
 				log.Errorf("blockstore.GetSize(%s) error: %s", c, err)
-			} else {
-				if c.GetRequest() != "" {
-					reqcid, err := c.GetRequestCid()
-					if err != nil {
-						log.Errorf("(%s).GetRequestCid() error: %s", c, err)
-					} else {
-						size, err = bsm.bs.GetSize(ctx, reqcid)
-						if err != nil {
-							if !ipld.IsNotFound(err) {
-								log.Errorf("blockstore.GetSize(%s) error: %s", reqcid, err)
-							}
-						} else {
-							lk.Lock()
-							res[c] = size
-							lk.Unlock()
-						}
-					}
-				}
 			}
 		} else {
 			lk.Lock()
