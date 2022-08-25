@@ -1,7 +1,6 @@
 package sessioninterestmanager
 
 import (
-	"fmt"
 	"sync"
 
 	blocks "github.com/ipfs/go-block-format"
@@ -144,7 +143,6 @@ func (sim *SessionInterestManager) FilterSessionInterested(ses uint64, ksets ...
 // When bitswap receives blocks it calls SplitWantedUnwanted() to discard
 // unwanted blocks
 func (sim *SessionInterestManager) SplitWantedUnwanted(blks []blocks.Block) ([]blocks.Block, []blocks.Block) {
-
 	sim.lk.RLock()
 	defer sim.lk.RUnlock()
 
@@ -152,26 +150,12 @@ func (sim *SessionInterestManager) SplitWantedUnwanted(blks []blocks.Block) ([]b
 	wantedKs := cid.NewSet()
 	for _, b := range blks {
 		c := b.Cid()
-
 		// For each session that is interested in the key
 		for ses := range sim.wants[c] {
 			// If the session wants the key (rather than just being interested)
 			if wanted, ok := sim.wants[c][ses]; ok && wanted {
 				// Add the key to the set
 				wantedKs.Add(c)
-			}
-		}
-
-		reqcid, err := c.GetRequestCid()
-		if err == nil {
-			// For each session that is interested in the key of request
-			for ses := range sim.wants[reqcid] {
-				// If the session wants the key (rather than just being interested)
-				if wanted, ok := sim.wants[reqcid][ses]; ok && wanted {
-					// Add the key to the set
-					fmt.Println("[Print Debug] add original block: " + reqcid.String())
-					wantedKs.Add(reqcid)
-				}
 			}
 		}
 	}
@@ -183,15 +167,46 @@ func (sim *SessionInterestManager) SplitWantedUnwanted(blks []blocks.Block) ([]b
 		if wantedKs.Has(b.Cid()) {
 			wantedBlks = append(wantedBlks, b)
 		} else {
-			reqcid, _ := b.Cid().GetRequestCid()
-			if wantedKs.Has(reqcid) {
-				wantedBlks = append(wantedBlks, b)
-			} else {
-				notWantedBlks = append(notWantedBlks, b)
-			}
+			notWantedBlks = append(notWantedBlks, b)
 		}
 	}
 	return wantedBlks, notWantedBlks
+}
+
+func (sim *SessionInterestManager) CheckRequest(blks []blocks.Block) ([]blocks.Block, []blocks.Block) {
+	sim.lk.RLock()
+	defer sim.lk.RUnlock()
+
+	// Get the wanted block keys as a set
+	wantedKs := cid.NewSet()
+	for _, b := range blks {
+		c := b.Cid()
+		reqCid, err := c.GetRequestCid()
+		if err == nil {
+			// For each session that is interested in the key
+			for ses := range sim.wants[reqCid] {
+				// If the session wants the key (rather than just being interested)
+				if wanted, ok := sim.wants[reqCid][ses]; ok && wanted {
+					// Add the key to the set
+					wantedKs.Add(reqCid)
+				}
+			}
+		}
+	}
+
+	// Separate the blocks into wanted and unwanted
+	requestBlks := make([]blocks.Block, 0, len(blks))
+	notWantedBlks := make([]blocks.Block, 0)
+	for _, b := range blks {
+		c := b.Cid()
+		reqCid, err := c.GetRequestCid()
+		if err == nil && wantedKs.Has(reqCid) {
+			requestBlks = append(requestBlks, b)
+		} else {
+			notWantedBlks = append(notWantedBlks, b)
+		}
+	}
+	return requestBlks, notWantedBlks
 }
 
 // When the SessionManager receives a message it calls InterestedSessions() to

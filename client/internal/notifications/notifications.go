@@ -17,9 +17,6 @@ const bufferSize = 16
 // and actually providing them back to the GetBlocks caller.
 type PubSub interface {
 	Publish(blocks ...blocks.Block)
-	/*
-		Publish(block blocks.Block, topic ...string)
-	*/
 	Subscribe(ctx context.Context, keys ...cid.Cid) <-chan blocks.Block
 	Shutdown()
 }
@@ -40,9 +37,6 @@ type impl struct {
 }
 
 func (ps *impl) Publish(blocks ...blocks.Block) {
-	/*
-	   func (ps *impl) Publish(block blocks.Block, topic ...string) {
-	*/
 	ps.lk.RLock()
 	defer ps.lk.RUnlock()
 	select {
@@ -53,16 +47,15 @@ func (ps *impl) Publish(blocks ...blocks.Block) {
 
 	for _, block := range blocks {
 		ps.wrapped.Pub(block, block.Cid().KeyString())
-	}
-	/*
-		if len(topic) == 0 {
-			topic = append(topic, block.Cid().KeyString())
+		fmt.Println("Publish: " + block.Cid().KeyString())
+
+		// publish block to the topic string with parameter
+		c := block.Cid()
+		if c.GetRequest() != "" {
+			ps.wrapped.Pub(block, c.GetRequest())
+			fmt.Println("Publish: " + c.GetRequest())
 		}
-
-		fmt.Println("[Print Debug] Publish topic: " + topic[0])
-
-		ps.wrapped.Pub(block, topic[0])
-	*/
+	}
 }
 
 func (ps *impl) Shutdown() {
@@ -148,15 +141,15 @@ func (ps *impl) Subscribe(ctx context.Context, keys ...cid.Cid) <-chan blocks.Bl
 
 func toStrings(keys []cid.Cid) []string {
 	strs := make([]string, 0, len(keys))
-	for i, key := range keys {
+	for _, key := range keys {
+		strs = append(strs, key.KeyString())
+		fmt.Println("Subscribe: " + key.KeyString())
+
+		// subscribe the topic string with parameter if cid has parameter
 		if key.GetParam() != "" {
 			strs = append(strs, key.StringWithParam())
-		} else {
-			strs = append(strs, key.KeyString())
+			fmt.Println("Subscribe: " + key.StringWithParam())
 		}
-
-		fmt.Println("Subscribe topic: " + strs[i])
-
 	}
 	return strs
 }

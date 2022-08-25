@@ -298,8 +298,15 @@ func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []bl
 	}
 
 	wanted, notWanted := bs.sim.SplitWantedUnwanted(blks)
+	request, notWanted := bs.sim.CheckRequest(notWanted)
+	wanted = append(wanted, request...)
+
 	for _, b := range notWanted {
 		log.Debugf("[recv] block not in wantlist; cid=%s, peer=%s", b.Cid(), from)
+	}
+
+	for _, b := range request {
+		log.Debugf("block cid=%s", b.Cid())
 	}
 
 	allKs := make([]cid.Cid, 0, len(blks))
