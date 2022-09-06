@@ -548,6 +548,17 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 			} else {
 				// Add DONT_HAVEs to the message
 				msg.AddDontHave(c)
+				if ok, r := c.IsExistResizeCid(); ok {
+					// Add corresponds
+					msg.AddCorresponds(c, r)
+					// Add resized block
+					rcids := make([]cid.Cid, 0)
+					rcids = append(rcids, r)
+					blks, err := e.bsm.getBlocks(ctx, rcids)
+					if b, ok := blks[r]; ok && err == nil {
+						msg.AddBlock(b)
+					}
+				}
 			}
 		}
 

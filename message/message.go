@@ -32,6 +32,8 @@ type BitSwapMessage interface {
 	Haves() []cid.Cid
 	// DontHaves returns the Cids for each DONT_HAVE
 	DontHaves() []cid.Cid
+	// Corresponds returns the list of  "original Cid with parameter" and "resized Cid" in the message
+	Corresponds() []Correspond
 	// PendingBytes returns the number of outstanding bytes of data that the
 	// engine has yet to send to the client (because they didn't fit in this
 	// message)
@@ -64,6 +66,8 @@ type BitSwapMessage interface {
 	AddHave(cid.Cid)
 	// AddDontHave adds a DONT_HAVE for the given Cid to the message
 	AddDontHave(cid.Cid)
+	// AddCorresponds adds a corresponding map of Cid to the message
+	AddCorresponds(cid.Cid, cid.Cid)
 	// SetPendingBytes sets the number of bytes of data that are yet to be sent
 	// to the client (because they didn't fit in this message)
 	SetPendingBytes(int32)
@@ -94,6 +98,11 @@ type Exportable interface {
 type BlockPresence struct {
 	Cid  cid.Cid
 	Type pb.Message_BlockPresenceType
+}
+
+type Correspond struct {
+	Original cid.Cid
+	Resize   cid.Cid
 }
 
 // Entry is a wantlist entry in a Bitswap message, with flags indicating
@@ -146,6 +155,7 @@ type impl struct {
 	wantlist       map[cid.Cid]*Entry
 	blocks         map[cid.Cid]blocks.Block
 	blockPresences map[cid.Cid]pb.Message_BlockPresenceType
+	corresponds    map[cid.Cid]cid.Cid
 	pendingBytes   int32
 }
 
@@ -160,6 +170,7 @@ func newMsg(full bool) *impl {
 		wantlist:       make(map[cid.Cid]*Entry),
 		blocks:         make(map[cid.Cid]blocks.Block),
 		blockPresences: make(map[cid.Cid]pb.Message_BlockPresenceType),
+		corresponds:    make(map[cid.Cid]cid.Cid),
 	}
 }
 
@@ -174,6 +185,9 @@ func (m *impl) Clone() BitSwapMessage {
 	}
 	for k := range m.blockPresences {
 		msg.blockPresences[k] = m.blockPresences[k]
+	}
+	for k := range m.corresponds {
+		msg.corresponds[k] = m.corresponds[k]
 	}
 	msg.pendingBytes = m.pendingBytes
 	return msg
@@ -190,6 +204,9 @@ func (m *impl) Reset(full bool) {
 	}
 	for k := range m.blockPresences {
 		delete(m.blockPresences, k)
+	}
+	for k := range m.corresponds {
+		delete(m.corresponds, k)
 	}
 	m.pendingBytes = 0
 }
@@ -239,6 +256,13 @@ func newMessageFromProto(pbm pb.Message) (BitSwapMessage, error) {
 		m.AddBlockPresence(bi.Cid.Cid, bi.Type)
 	}
 
+	for _, c := range pbm.GetCorresponds() {
+		if !c.Original.Cid.Defined() && !c.Resize.Cid.Defined() {
+			return nil, errCidMissing
+		}
+		m.AddCorresponds(c.Original.Cid, c.Resize.Cid)
+	}
+
 	m.pendingBytes = pbm.PendingBytes
 
 	return m, nil
@@ -249,7 +273,7 @@ func (m *impl) Full() bool {
 }
 
 func (m *impl) Empty() bool {
-	return len(m.blocks) == 0 && len(m.wantlist) == 0 && len(m.blockPresences) == 0
+	return len(m.blocks) == 0 && len(m.wantlist) == 0 && len(m.blockPresences) == 0 && len(m.corresponds) == 0
 }
 
 func (m *impl) Wantlist() []Entry {
@@ -292,6 +316,14 @@ func (m *impl) getBlockPresenceByType(t pb.Message_BlockPresenceType) []cid.Cid 
 		}
 	}
 	return cids
+}
+
+func (m *impl) Corresponds() []Correspond {
+	cors := make([]Correspond, 0, len(m.corresponds))
+	for original, resize := range m.corresponds {
+		cors = append(cors, Correspond{Original: original, Resize: resize})
+	}
+	return cors
 }
 
 func (m *impl) PendingBytes() int32 {
@@ -369,6 +401,10 @@ func (m *impl) AddHave(c cid.Cid) {
 
 func (m *impl) AddDontHave(c cid.Cid) {
 	m.AddBlockPresence(c, pb.Message_DontHave)
+}
+
+func (m *impl) AddCorresponds(original cid.Cid, resize cid.Cid) {
+	m.corresponds[original] = resize
 }
 
 func (m *impl) Size() int {
@@ -454,6 +490,14 @@ func (m *impl) ToProtoV1() *pb.Message {
 		pbm.BlockPresences = append(pbm.BlockPresences, pb.Message_BlockPresence{
 			Cid:  pb.Cid{Cid: c},
 			Type: t,
+		})
+	}
+
+	pbm.Corresponds = make([]pb.Message_Correspond, 0, len(m.corresponds))
+	for o, r := range m.corresponds {
+		pbm.Corresponds = append(pbm.Corresponds, pb.Message_Correspond{
+			Original: pb.Cid{Cid: o},
+			Resize:   pb.Cid{Cid: r},
 		})
 	}
 

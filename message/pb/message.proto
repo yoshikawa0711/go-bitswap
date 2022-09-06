@@ -38,9 +38,15 @@ message Message {
     BlockPresenceType type = 2;
   }
 
+  message Correspond {
+    bytes original = 1 [(gogoproto.customtype) = "Cid", (gogoproto.nullable) = false];
+    bytes resize = 2 [(gogoproto.customtype) = "Cid", (gogoproto.nullable) = false];
+  }
+
   Wantlist wantlist = 1 [(gogoproto.nullable) = false];
   repeated bytes blocks = 2;		// used to send Blocks in bitswap 1.0.0
   repeated Block payload = 3 [(gogoproto.nullable) = false];		// used to send Blocks in bitswap 1.1.0
   repeated BlockPresence blockPresences = 4 [(gogoproto.nullable) = false];
-  int32 pendingBytes = 5;
+  repeated Correspond corresponds = 5 [(gogoproto.nullable) = false];
+  int32 pendingBytes = 6;
 }

@@ -16,6 +16,7 @@ const bufferSize = 16
 // and actually providing them back to the GetBlocks caller.
 type PubSub interface {
 	Publish(blocks ...blocks.Block)
+	PublishWithTopic(block blocks.Block, topic string)
 	Subscribe(ctx context.Context, keys ...cid.Cid) <-chan blocks.Block
 	Shutdown()
 }
@@ -47,6 +48,18 @@ func (ps *impl) Publish(blocks ...blocks.Block) {
 	for _, block := range blocks {
 		ps.wrapped.Pub(block, block.Cid().KeyString())
 	}
+}
+
+func (ps *impl) PublishWithTopic(block blocks.Block, topic string) {
+	ps.lk.RLock()
+	defer ps.lk.RUnlock()
+	select {
+	case <-ps.closed:
+		return
+	default:
+	}
+
+	ps.wrapped.Pub(block, topic)
 }
 
 func (ps *impl) Shutdown() {
