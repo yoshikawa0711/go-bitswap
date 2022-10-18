@@ -324,6 +324,7 @@ func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []bl
 
 	if bs.blockReceivedNotifier != nil {
 		bs.blockReceivedNotifier.ReceivedBlocks(from, wanted)
+		bs.blockReceivedNotifier.ReceivedBlocks(from, resize)
 	}
 
 	// Publish the block to any Bitswap clients that had requested blocks.
