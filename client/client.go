@@ -290,8 +290,7 @@ func (bs *Client) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) err
 }
 
 // receiveBlocksFrom process blocks received from the network
-func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []blocks.Block,
-	haves []cid.Cid, dontHaves []cid.Cid, cors []bsmsg.Correspond) error {
+func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []blocks.Block, haves []cid.Cid, dontHaves []cid.Cid) error {
 
 	select {
 	case <-bs.process.Closing():
@@ -300,8 +299,6 @@ func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []bl
 	}
 
 	wanted, notWanted := bs.sim.SplitWantedUnwanted(blks)
-	// check notWanted is in list of corresponds
-	resize, notWanted := checkCorresponds(notWanted, cors)
 
 	for _, b := range notWanted {
 		log.Debugf("[recv] block not in wantlist; cid=%s, peer=%s", b.Cid(), from)
@@ -324,7 +321,6 @@ func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []bl
 
 	if bs.blockReceivedNotifier != nil {
 		bs.blockReceivedNotifier.ReceivedBlocks(from, wanted)
-		bs.blockReceivedNotifier.ReceivedBlocks(from, resize)
 	}
 
 	// Publish the block to any Bitswap clients that had requested blocks.
@@ -332,22 +328,6 @@ func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []bl
 	// blocks)
 	for _, b := range wanted {
 		bs.notif.Publish(b)
-	}
-
-	for _, c := range cors {
-		for _, b := range resize {
-			if c.Resize.Equals(b.Cid()) {
-				bs.notif.PublishWithTopic(b, c.Original.KeyString())
-				break
-			}
-		}
-
-		// if don't recieve resizing block from peer
-		// and resizing block is in blockstore
-		blk, err := bs.blockstore.Get(ctx, c.Resize)
-		if err == nil {
-			bs.notif.PublishWithTopic(blk, c.Original.KeyString())
-		}
 	}
 
 	for _, b := range wanted {
@@ -379,12 +359,29 @@ func (bs *Client) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg.
 
 	haves := incoming.Haves()
 	dontHaves := incoming.DontHaves()
-
 	cors := incoming.Corresponds()
+
+	for _, cor := range cors {
+		original := cor.Original
+		resized := cor.Resize
+		log.Debugw("[recv] cid corresponds", "original", original, "transformed", resized)
+
+		// chack local blockstore
+		blk, err := bs.blockstore.Get(ctx, resized)
+		if err == nil {
+			bs.notif.PublishWithTopic(blk, original.KeyString())
+		}
+
+		// re asking peer by transformed cid
+		blk, err = bs.GetBlock(ctx, resized)
+		if err == nil {
+			bs.notif.PublishWithTopic(blk, original.KeyString())
+		}
+	}
 
 	if len(iblocks) > 0 || len(haves) > 0 || len(dontHaves) > 0 {
 		// Process blocks
-		err := bs.receiveBlocksFrom(ctx, p, iblocks, haves, dontHaves, cors)
+		err := bs.receiveBlocksFrom(ctx, p, iblocks, haves, dontHaves)
 		if err != nil {
 			log.Warnf("ReceiveMessage recvBlockFrom error: %s", err)
 			return
@@ -501,22 +498,4 @@ func (bs *Client) NewSession(ctx context.Context) exchange.Fetcher {
 	ctx, span := internal.StartSpan(ctx, "NewSession")
 	defer span.End()
 	return bs.sm.NewSession(ctx, bs.provSearchDelay, bs.rebroadcastDelay)
-}
-
-func checkCorresponds(blks []blocks.Block, cors []bsmsg.Correspond) ([]blocks.Block, []blocks.Block) {
-	resize := make([]blocks.Block, 0, 0)
-	notWanted := make([]blocks.Block, 0, len(blks))
-
-	for _, b := range blks {
-		for _, c := range cors {
-			if c.Resize.Equals(b.Cid()) {
-				resize = append(resize, b)
-				break
-			}
-
-			notWanted = append(notWanted, b)
-		}
-	}
-
-	return resize, notWanted
 }
