@@ -548,17 +548,17 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 			} else {
 				// Add DONT_HAVEs to the message
 				msg.AddDontHave(c)
-				if ok, r := c.IsExistResizeCid(); ok {
-					// Add corresponds
-					msg.AddCorresponds(c, r)
-					// Add resized block
-					rcids := make([]cid.Cid, 0)
-					rcids = append(rcids, r)
-					blks, err := e.bsm.getBlocks(ctx, rcids)
-					if b, ok := blks[r]; ok && err == nil {
-						msg.AddBlock(b)
-					}
-				}
+			}
+		}
+
+		// Split parameterized Cid and default cid
+		paramCids := make([]cid.Cid, 0, len(blockCids))
+		blockCids, paramCids = splitParamCids(blockCids)
+
+		for _, c := range paramCids {
+			if ok, r := c.IsExistResizeCid(); ok {
+				// Add corresponds
+				msg.AddCorresponds(c, r)
 			}
 		}
 
@@ -604,6 +604,20 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 			},
 		}, nil
 	}
+}
+
+func splitParamCids(cids []cid.Cid) ([]cid.Cid, []cid.Cid) {
+	paramCids := make([]cid.Cid, 0, len(cids))
+	defaultCids := make([]cid.Cid, 0, len(cids))
+
+	for _, c := range cids {
+		if c.GetParam() != "" {
+			paramCids = append(paramCids, c)
+		} else {
+			defaultCids = append(defaultCids, c)
+		}
+	}
+	return defaultCids, paramCids
 }
 
 // Outbox returns a channel of one-time use Envelope channels.
