@@ -549,16 +549,12 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 				// Add DONT_HAVEs to the message
 				msg.AddDontHave(c)
 			}
-		}
 
-		// Split parameterized Cid and default cid
-		paramCids := make([]cid.Cid, 0, len(blockCids))
-		blockCids, paramCids = splitParamCids(blockCids)
-
-		for _, c := range paramCids {
-			if ok, r := c.IsExistResizeCid(); ok {
-				// Add corresponds
-				msg.AddCorresponds(c, r)
+			if c.GetParam() != "" {
+				if ok, r := c.IsExistResizeCid(); ok {
+					// Add corresponds
+					msg.AddCorresponds(c, r)
+				}
 			}
 		}
 
