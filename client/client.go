@@ -5,6 +5,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"sync"
 	"time"
@@ -327,6 +328,7 @@ func (bs *Client) receiveBlocksFrom(ctx context.Context, from peer.ID, blks []bl
 	// (the sessions use this pubsub mechanism to inform clients of incoming
 	// blocks)
 	for _, b := range wanted {
+		fmt.Println("get block [" + b.Cid().String() + "] from peer [" + from.String() + "]")
 		bs.notif.Publish(b)
 	}
 
