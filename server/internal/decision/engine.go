@@ -537,7 +537,12 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 		for _, t := range nextTasks {
 			c := t.Topic.(cid.Cid)
 			td := t.Data.(*taskData)
-			if td.HaveBlock {
+			if c.GetParam() != "" {
+				if ok, r := c.IsExistResizeCid(); ok {
+					// Add corresponds
+					msg.AddCorresponds(c, r)
+				}
+			} else if td.HaveBlock {
 				if td.IsWantBlock {
 					blockCids = append(blockCids, c)
 					blockTasks[c] = td
@@ -548,13 +553,6 @@ func (e *Engine) nextEnvelope(ctx context.Context) (*Envelope, error) {
 			} else {
 				// Add DONT_HAVEs to the message
 				msg.AddDontHave(c)
-			}
-
-			if c.GetParam() != "" {
-				if ok, r := c.IsExistResizeCid(); ok {
-					// Add corresponds
-					msg.AddCorresponds(c, r)
-				}
 			}
 		}
 
@@ -751,7 +749,31 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 		// If the block was not found
 		if !found {
 			log.Debugw("Bitswap engine: block not found", "local", e.self, "from", p, "cid", entry.Cid, "sendDontHave", entry.SendDontHave)
-			sendDontHave(entry)
+
+			// check Cid relation
+			if c.GetParam() != "" {
+				if ok, _ := c.IsExistResizeCid(); ok {
+					newWorkExists = true
+					isWantBlock := false
+					if entry.WantType == pb.Message_Wantlist_Block {
+						isWantBlock = true
+					}
+
+					activeEntries = append(activeEntries, peertask.Task{
+						Topic:    c,
+						Priority: int(entry.Priority),
+						Work:     bsmsg.BlockPresenceSize(c),
+						Data: &taskData{
+							BlockSize:    0,
+							HaveBlock:    false,
+							IsWantBlock:  isWantBlock,
+							SendDontHave: entry.SendDontHave,
+						},
+					})
+				}
+			} else {
+				sendDontHave(entry)
+			}
 		} else {
 			// The block was found, add it to the queue
 			newWorkExists = true
