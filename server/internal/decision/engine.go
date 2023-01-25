@@ -641,6 +641,9 @@ func (e *Engine) MessageReceived(ctx context.Context, p peer.ID, m bsmsg.BitSwap
 	if len(entries) > 0 {
 		log.Debugw("Bitswap engine <- msg", "local", e.self, "from", p, "entryCount", len(entries))
 		for _, et := range entries {
+
+			fmt.Println("wantlist CID: " + et.Cid.StringWithParam())
+
 			if !et.Cancel {
 				if et.WantType == pb.Message_Wantlist_Have {
 					log.Debugw("Bitswap engine <- want-have", "local", e.self, "from", p, "cid", et.Cid)

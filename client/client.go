@@ -5,6 +5,7 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"sync"
 	"time"
@@ -348,6 +349,7 @@ func (bs *Client) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg.
 	}
 
 	iblocks := incoming.Blocks()
+	fmt.Println("receive message from: " + p)
 
 	if len(iblocks) > 0 {
 		bs.updateReceiveCounters(iblocks)
@@ -359,6 +361,7 @@ func (bs *Client) ReceiveMessage(ctx context.Context, p peer.ID, incoming bsmsg.
 	haves := incoming.Haves()
 	dontHaves := incoming.DontHaves()
 	cors := incoming.Corresponds()
+	fmt.Println("incoming relations: " + fmt.Sprint(cors))
 
 	for _, cor := range cors {
 		original := cor.Original
